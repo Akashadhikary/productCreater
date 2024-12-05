@@ -6,6 +6,7 @@ import EditIcon from "@mui/icons-material/Edit";
 import ClearIcon from "@mui/icons-material/Clear";
 import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
 import KeyboardArrowUpIcon from "@mui/icons-material/KeyboardArrowUp";
+import ListIcon from "@mui/icons-material/List";
 
 const ProductList = () => {
   const [searchFields, setSearchFields] = useState([]);
@@ -58,33 +59,13 @@ const ProductList = () => {
           ? {
               ...field,
               selectedProduct: selectedProducts[0],
-              variant: selectedProducts[0]?.variant || null,
+              variant: selectedProducts[0]?.variants || null,
             }
           : field
       )
     );
     setIsDialogOpen(false);
     setCurrentFieldId(null);
-  };
-
-  const handleDiscountValueChange = (id, value) => {
-    setSearchFields((fields) =>
-      fields.map((field) =>
-        field.id === id
-          ? { ...field, discount: { ...field.discount, value } }
-          : field
-      )
-    );
-  };
-
-  const handleDiscountTypeChange = (id, type) => {
-    setSearchFields((fields) =>
-      fields.map((field) =>
-        field.id === id
-          ? { ...field, discount: { ...field.discount, type } }
-          : field
-      )
-    );
   };
 
   const toggleDiscountFields = (id) => {
@@ -119,15 +100,86 @@ const ProductList = () => {
     setSearchFields((fields) => fields.filter((field) => field.id !== id));
   };
 
+  const handleProductDiscountChange = (fieldId, key, value) => {
+    setSearchFields((fields) =>
+      fields.map((field) =>
+        field.id === fieldId
+          ? {
+              ...field,
+              discount: {
+                ...field.discount,
+                [key]: value,
+              },
+              selectedProduct: {
+                ...field.selectedProduct,
+                variants: field.selectedProduct.variants.map((variant) => ({
+                  ...variant,
+                  discount: variant.discount || {},
+                })),
+              },
+            }
+          : field
+      )
+    );
+  };
+
+  const handleVariantDiscountChange = (fieldId, variantIdx, key, value) => {
+    setSearchFields((fields) =>
+      fields.map((field) =>
+        field.id === fieldId
+          ? {
+              ...field,
+              selectedProduct: {
+                ...field.selectedProduct,
+                variants: field.selectedProduct.variants.map((variant, idx) =>
+                  idx === variantIdx
+                    ? {
+                        ...variant,
+                        discount: {
+                          ...variant.discount,
+                          [key]: value,
+                        },
+                      }
+                    : variant
+                ),
+              },
+            }
+          : field
+      )
+    );
+  };
+
+  const handleRemoveVariant = (fieldId, variantIdx) => {
+    setSearchFields((fields) =>
+      fields.map((field) =>
+        field.id === fieldId
+          ? {
+              ...field,
+              selectedProduct: {
+                ...field.selectedProduct,
+                variants: field.selectedProduct.variants.filter(
+                  (variant, idx) => idx !== variantIdx
+                ),
+              },
+            }
+          : field
+      )
+    );
+  };
+
   return (
     <div className="max-w-4xl mx-auto p-4">
       <DragDropContext onDragEnd={handleOnDragEnd}>
+        <div className="mx-auto flex w-full justify-between flex-wrap self-stretch">
+          <h3 className="font-medium text-black ml-20">Product</h3>
+          <h3 className="font-medium text-black mr-32">Discount</h3>
+        </div>
         <Droppable droppableId="products">
           {(provided) => (
             <div
               {...provided.droppableProps}
               ref={provided.innerRef}
-              className="space-y-4"
+              className="space-y-6"
             >
               {searchFields.map((field, index) => (
                 <Draggable
@@ -140,122 +192,188 @@ const ProductList = () => {
                       {...provided.draggableProps}
                       {...provided.dragHandleProps}
                       ref={provided.innerRef}
-                      className="flex items-center gap-4 p-2 bg-white shadow rounded"
+                      className="p-4"
                     >
-                      <span className="text-gray-500">{index + 1}.</span>
-
-                      {field.selectedProduct ? (
-                        <div className="flex items-center gap-4 w-full">
-                          <span>{field.selectedProduct.title}</span>
-
-                          <button
-                            onClick={() => handleEditSearchField(field.id)}
-                            className="p-2 bg-gray-200 rounded hover:bg-gray-300"
-                          >
-                            <EditIcon />
-                          </button>
-                        </div>
-                      ) : (
-                        <div className="flex items-center w-full gap-2 border border-gray-300 rounded">
-                          <input
-                            type="text"
-                            value={field.searchTerm}
-                            onChange={(e) =>
-                              handleSearchChange(field.id, e.target.value)
-                            }
-                            placeholder="Select Product"
-                            className="flex-grow p-2 rounded-l focus:outline-none"
-                          />
-                          <button
-                            onClick={() => handleEditSearchField(field.id)}
-                            className="p-2 bg-gray-200 rounded-r hover:bg-gray-300"
-                          >
-                            <EditIcon />
-                          </button>
-                        </div>
-                      )}
-
-                      <div className="flex items-center justify-between w-full mt-2">
-                        <div className="flex items-center gap-4">
-                          {field.showDiscount && (
-                            <div className="flex items-center gap-2 w-full mt-2">
-                              <input
-                                type="text"
-                                value={field.discount.value}
-                                onChange={(e) =>
-                                  handleDiscountValueChange(
-                                    field.id,
-                                    e.target.value
-                                  )
-                                }
-                                className="p-2 border border-gray-300 hover:border-green-700 hover:border-x-2 hover:border-y-2 rounded w-full focus:border-green-700 focus:outline-none"
-                              />
-                              <select
-                                value={field.discount.type}
-                                onChange={(e) =>
-                                  handleDiscountTypeChange(
-                                    field.id,
-                                    e.target.value
-                                  )
-                                }
-                                className="p-2 border border-gray-300 hover:border-green-700 hover:border-x-2 hover:border-y-2 rounded focus:border-green-700 focus:outline-none"
-                              >
-                                <option value="flat">Flat Off</option>
-                                <option value="percent">% Off</option>
-                              </select>
-                            </div>
-                          )}
-                        </div>
-
-                        <div>
-                          {!field.showDiscount && (
-                            <button
-                              onClick={() => toggleDiscountFields(field.id)}
-                              className="py-2 px-10 bg-green-700 text-white rounded"
-                            >
-                              Add Discount
-                            </button>
-                          )}
-
-                          <div className="w-full mt-6">
-                            <div className="flex items-center justify-between w-full">
-                              {field.showVariant && field.variant && (
-                                <div className="text-gray-700 font-semibold border border-gray-300 p-2 rounded-md w-full mr-6 whitespace-nowrap">
-                                  <p className="text-sm">
-                                    {field.variant.title}
-                                  </p>
-                                </div>
-                              )}
-
-                              <div className="">
-                                <button
-                                  onClick={() =>
-                                    toggleVariantVisibility(field.id)
-                                  }
-                                  className="cursor-pointer text-blue-600 underline flex items-center gap-2"
-                                >
-                                  {field.showVariant ? (
-                                    <>
-                                      Hide Variant <KeyboardArrowUpIcon />
-                                    </>
-                                  ) : (
-                                    <>
-                                      Show Variant <KeyboardArrowDownIcon />
-                                    </>
-                                  )}
-                                </button>
-                              </div>
-                            </div>
+                      {/* Top Section: Product Input, Discount Button, Clear Button */}
+                      <div className="flex items-center gap-5">
+                        <div className="w-6 h-6 gap-2 flex items-center justify-center text-sm font-bold text-gray-700">
+                          <div className="text-gray-400">
+                            <ListIcon />
                           </div>
+                          {index + 1}.
                         </div>
 
+                        {/* Product Input */}
+                        {field.selectedProduct ? (
+                          <div className="flex px-2 items-center border shadow-md gap-4 w-full text-gray-500 justify-between">
+                            <span>{field.selectedProduct.title}</span>
+                            <button
+                              onClick={() => handleEditSearchField(field.id)}
+                              className="p-2 text-gray-400 ml-auto"
+                            >
+                              <EditIcon />
+                            </button>
+                          </div>
+                        ) : (
+                          <div className="flex items-center w-full gap-2 border border-gray-300 rounded shadow-md">
+                            <input
+                              type="text"
+                              value={field.searchTerm}
+                              onChange={(e) =>
+                                handleSearchChange(field.id, e.target.value)
+                              }
+                              placeholder="Select Product"
+                              className="flex-grow p-2 rounded-l focus:outline-none"
+                            />
+                            <button
+                              onClick={() => handleEditSearchField(field.id)}
+                              className="p-2 bg-white rounded text-gray-400"
+                            >
+                              <EditIcon />
+                            </button>
+                          </div>
+                        )}
+
+                        {/* Discount Button */}
+                        {!field.showDiscount ? (
+                          <button
+                            onClick={() => toggleDiscountFields(field.id)}
+                            className="py-2 px-12 bg-green-700 text-white rounded whitespace-nowrap"
+                          >
+                            Add Discount
+                          </button>
+                        ) : (
+                          <div className="flex items-center gap-4">
+                            <input
+                              type="text"
+                              value={field.discount?.value || ""}
+                              onChange={(e) =>
+                                handleProductDiscountChange(
+                                  field.id,
+                                  "value",
+                                  e.target.value
+                                )
+                              }
+                              className="p-2 border border-gray-300 text-gray-500 rounded focus:outline-none w-20 shadow-md"
+                              placeholder="Value"
+                            />
+                            <select
+                              value={field.discount?.type || ""}
+                              onChange={(e) =>
+                                handleProductDiscountChange(
+                                  field.id,
+                                  "type",
+                                  e.target.value
+                                )
+                              }
+                              className="p-2 text-gray-500 border border-gray-300 rounded shadow-md focus:outline-none w-28"
+                            >
+                              <option value="flat">% Off</option>
+                              <option value="percent">Flat Off</option>
+                            </select>
+                          </div>
+                        )}
+
+                        {/* Remove Product */}
                         {searchFields.length > 1 && (
                           <button
                             onClick={() => handleRemoveProduct(field.id)}
-                            className="p-2 text-black rounded hover:cursor-pointer"
+                            className="p-2 text-gray-500 rounded hover:cursor-pointer"
                           >
                             <ClearIcon />
                           </button>
+                        )}
+                      </div>
+
+                      {/* Bottom Section: Variant Button and Variants */}
+                      <div className="mt-4 flex flex-wrap">
+                        {field.selectedProduct?.variants?.length > 0 && (
+                          <div className="w-full">
+                            <button
+                              onClick={() => toggleVariantVisibility(field.id)}
+                              className="cursor-pointer text-blue-600 underline flex items-center gap-2 ml-auto"
+                            >
+                              {field.showVariant ? (
+                                <>
+                                  Hide Variant <KeyboardArrowUpIcon />
+                                </>
+                              ) : (
+                                <>
+                                  Show Variant <KeyboardArrowDownIcon />
+                                </>
+                              )}
+                            </button>
+                          </div>
+                        )}
+
+                        {/* Show Variants */}
+                        {field.showVariant && (
+                          <div className="flex flex-wrap justify-end w-full">
+                            {field.selectedProduct?.variants?.map(
+                              (variant, idx) => (
+                                <div
+                                  key={idx}
+                                  className="mt-4 p-2 flex items-center gap-4"
+                                >
+                                  <div className="text-gray-400">
+                                    <ListIcon />
+                                  </div>
+                                  <p className="w-36 p-2 border text-center rounded-full shadow-md text-sm font-medium text-gray-500">
+                                    {variant.title}
+                                  </p>
+                                  <div className="flex items-center gap-4">
+                                    <input
+                                      type="text"
+                                      value={
+                                        variant.discount?.value !== undefined
+                                          ? variant.discount.value
+                                          : field.discount?.value || ""
+                                      }
+                                      onChange={(e) =>
+                                        handleVariantDiscountChange(
+                                          field.id,
+                                          idx,
+                                          "value",
+                                          e.target.value
+                                        )
+                                      }
+                                      className="p-2 border rounded-full text-gray-500 shadow-md focus:outline-none w-20"
+                                      placeholder="Value"
+                                    />
+                                    <select
+                                      value={
+                                        variant.discount?.type !== undefined
+                                          ? variant.discount.type
+                                          : field.discount?.type || ""
+                                      }
+                                      onChange={(e) =>
+                                        handleVariantDiscountChange(
+                                          field.id,
+                                          idx,
+                                          "type",
+                                          e.target.value
+                                        )
+                                      }
+                                      className="p-2 border rounded-full text-gray-500 shadow-md focus:outline-none w-24"
+                                    >
+                                      <option value="flat">% Off</option>
+                                      <option value="percent">Flat Off</option>
+                                    </select>
+
+                                    {/* clear varient */}
+                                    <div
+                                      className="text-gray-500"
+                                      onClick={() =>
+                                        handleRemoveVariant(field.id, idx)
+                                      }
+                                    >
+                                      <ClearIcon />
+                                    </div>
+                                  </div>
+                                </div>
+                              )
+                            )}
+                          </div>
                         )}
                       </div>
                     </div>
