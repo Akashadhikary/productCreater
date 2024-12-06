@@ -86,14 +86,32 @@ const ProductList = () => {
     );
   };
 
-  const handleOnDragEnd = (result) => {
+  const handleOnDragEnd = (result, fieldId) => {
     if (!result.destination) return;
 
-    const items = Array.from(searchFields);
-    const [reorderedItem] = items.splice(result.source.index, 1);
-    items.splice(result.destination.index, 0, reorderedItem);
+    const { source, destination } = result;
 
-    setSearchFields(items);
+    if (source.droppableId === destination.droppableId) {
+      // Find the product field by ID
+      const updatedFields = searchFields.map((field) => {
+        if (field.id === fieldId) {
+          const updatedVariants = Array.from(field.selectedProduct.variants);
+          const [movedVariant] = updatedVariants.splice(source.index, 1);
+          updatedVariants.splice(destination.index, 0, movedVariant);
+
+          return {
+            ...field,
+            selectedProduct: {
+              ...field.selectedProduct,
+              variants: updatedVariants,
+            },
+          };
+        }
+        return field;
+      });
+
+      setSearchFields(updatedFields);
+    }
   };
 
   const handleRemoveProduct = (id) => {
@@ -114,7 +132,10 @@ const ProductList = () => {
                 ...field.selectedProduct,
                 variants: field.selectedProduct.variants.map((variant) => ({
                   ...variant,
-                  discount: variant.discount || {},
+                  discount: {
+                    ...variant.discount,
+                    [key]: value,
+                  },
                 })),
               },
             }
@@ -169,12 +190,16 @@ const ProductList = () => {
 
   return (
     <div className="max-w-4xl mx-auto p-4">
-      <DragDropContext onDragEnd={handleOnDragEnd}>
+      <DragDropContext
+        onDragEnd={(result) =>
+          handleOnDragEnd(result, result.source.droppableId.split("-")[1])
+        }
+      >
         <div className="mx-auto flex w-full justify-between flex-wrap self-stretch">
           <h3 className="font-medium text-black ml-20">Product</h3>
           <h3 className="font-medium text-black mr-32">Discount</h3>
         </div>
-        <Droppable droppableId="products">
+        <Droppable droppableId="products" type="product">
           {(provided) => (
             <div
               {...provided.droppableProps}
@@ -182,11 +207,7 @@ const ProductList = () => {
               className="space-y-6"
             >
               {searchFields.map((field, index) => (
-                <Draggable
-                  key={field.id}
-                  draggableId={`${field.id}`}
-                  index={index}
-                >
+                <Draggable key={field.id} draggableId={`${field.id}`} index={index}>
                   {(provided) => (
                     <div
                       {...provided.draggableProps}
@@ -266,11 +287,17 @@ const ProductList = () => {
                                   e.target.value
                                 )
                               }
-                              className="p-2 text-gray-500 border border-gray-300 rounded shadow-md focus:outline-none w-28"
+                              className="p-2 border border-gray-300 text-gray-500 rounded focus:outline-none w-24 shadow-md"
                             >
                               <option value="flat">% Off</option>
                               <option value="percent">Flat Off</option>
                             </select>
+                            <button
+                              onClick={() => toggleDiscountFields(field.id)}
+                              className="p-2 text-gray-500 rounded"
+                            >
+                              Done
+                            </button>
                           </div>
                         )}
 
@@ -308,72 +335,67 @@ const ProductList = () => {
 
                         {/* Show Variants */}
                         {field.showVariant && (
-                          <div className="flex flex-wrap justify-end w-full">
-                            {field.selectedProduct?.variants?.map(
-                              (variant, idx) => (
-                                <div
-                                  key={idx}
-                                  className="mt-4 p-2 flex items-center gap-4"
-                                >
-                                  <div className="text-gray-400">
-                                    <ListIcon />
-                                  </div>
-                                  <p className="w-36 p-2 border text-center rounded-full shadow-md text-sm font-medium text-gray-500">
-                                    {variant.title}
-                                  </p>
-                                  <div className="flex items-center gap-4">
-                                    <input
-                                      type="text"
-                                      value={
-                                        variant.discount?.value !== undefined
-                                          ? variant.discount.value
-                                          : field.discount?.value || ""
-                                      }
-                                      onChange={(e) =>
-                                        handleVariantDiscountChange(
-                                          field.id,
-                                          idx,
-                                          "value",
-                                          e.target.value
-                                        )
-                                      }
-                                      className="p-2 border rounded-full text-gray-500 shadow-md focus:outline-none w-20"
-                                      placeholder="Value"
-                                    />
-                                    <select
-                                      value={
-                                        variant.discount?.type !== undefined
-                                          ? variant.discount.type
-                                          : field.discount?.type || ""
-                                      }
-                                      onChange={(e) =>
-                                        handleVariantDiscountChange(
-                                          field.id,
-                                          idx,
-                                          "type",
-                                          e.target.value
-                                        )
-                                      }
-                                      className="p-2 border rounded-full text-gray-500 shadow-md focus:outline-none w-24"
-                                    >
-                                      <option value="flat">% Off</option>
-                                      <option value="percent">Flat Off</option>
-                                    </select>
+                          <Droppable droppableId={`variants-${field.id}`} type="variant">
+                            {(provided) => (
+                              <div
+                                ref={provided.innerRef}
+                                {...provided.droppableProps}
+                                className="flex flex-wrap justify-end w-full"
+                              >
+                                {field.selectedProduct?.variants?.map((variant, idx) => (
+                                  <Draggable key={variant.id} draggableId={`variant-${variant.id}`} index={idx}>
+                                    {(provided) => (
+                                      <div
+                                        {...provided.draggableProps}
+                                        {...provided.dragHandleProps}
+                                        ref={provided.innerRef}
+                                        className="mt-4 p-2 flex items-center gap-4"
+                                      >
+                                        <div className="text-gray-400">
+                                          <ListIcon />
+                                        </div>
+                                        <p className="w-36 p-2 border text-center rounded-full shadow-md text-sm font-medium text-gray-500">
+                                          {variant.title}
+                                        </p>
+                                        <div className="flex items-center gap-4">
+                                          <input
+                                            type="text"
+                                            value={variant.discount?.value || ""}
+                                            onChange={(e) =>
+                                              handleVariantDiscountChange(field.id, idx, "value", e.target.value)
+                                            }
+                                            className="p-2 border rounded-full text-gray-500 shadow-md focus:outline-none w-20"
+                                            placeholder="Value"
+                                          />
+                                          <select
+                                            value={variant.discount?.type || ""}
+                                            onChange={(e) =>
+                                              handleVariantDiscountChange(field.id, idx, "type", e.target.value)
+                                            }
+                                            className="p-2 border rounded-full text-gray-500 shadow-md focus:outline-none w-24"
+                                          >
+                                            <option value="flat">% Off</option>
+                                            <option value="percent">Flat Off</option>
+                                          </select>
 
-                                    {/* clear varient */}
-                                    <div
-                                      className="text-gray-500"
-                                      onClick={() =>
-                                        handleRemoveVariant(field.id, idx)
-                                      }
-                                    >
-                                      <ClearIcon />
-                                    </div>
-                                  </div>
-                                </div>
-                              )
+                                          {/* clear variant */}
+                                          <div
+                                            className="text-gray-500"
+                                            onClick={() =>
+                                              handleRemoveVariant(field.id, idx)
+                                            }
+                                          >
+                                            <ClearIcon />
+                                          </div>
+                                        </div>
+                                      </div>
+                                    )}
+                                  </Draggable>
+                                ))}
+                                {provided.placeholder}
+                              </div>
                             )}
-                          </div>
+                          </Droppable>
                         )}
                       </div>
                     </div>

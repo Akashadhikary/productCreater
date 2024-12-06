@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import ClearIcon from "@mui/icons-material/Clear";
 import SearchIcon from "@mui/icons-material/Search";
 
@@ -48,11 +48,45 @@ const ProductPicker = ({ onClose, onProductsSelected }) => {
     loadProducts();
   }, [searchTerm, currentPage]);
 
+
+  // throttling feature
+  const throttle = (func, limit) => {
+    let inThrottle;
+    return (...args) => {
+      if (!inThrottle) {
+        func(...args);
+        inThrottle = true;
+        setTimeout(() => {
+          inThrottle = false;
+        }, limit);
+      }
+    };
+  };
+
+  const throttledSearch = useCallback(
+    throttle((search) => {
+      setCurrentPage(0);
+      setDisplayedProducts([]);
+      loadProducts(search, 0);
+    }, 500),
+    []
+  );
+
   const handleSearchChange = (e) => {
     setSearchTerm(e.target.value);
-    setCurrentPage(0);
-    setDisplayedProducts([]);
+    throttledSearch(e.target.value);
   };
+
+  const loadProducts = async (search, page) => {
+    const products = await fetchAllProducts(search, page, pageSize);
+    const productsWithVariants = products.map((product) => ({
+      ...product,
+      variants: product.variants || [{ title: "Default Variant" }],
+    }));
+    setDisplayedProducts((prev) => [...prev, ...productsWithVariants]);
+  };
+
+
 
   const handleSelectProduct = (product) => {
     const isSelected = selectedProducts.some((p) => p.id === product.id);
